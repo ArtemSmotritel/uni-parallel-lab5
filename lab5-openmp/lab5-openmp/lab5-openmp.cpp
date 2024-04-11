@@ -13,13 +13,15 @@ int arr[arr_size1][arr_size2];
 
 void init_arr();
 long long part_sum(int, int, int);
-long long part_min(int, int, int);
+long long* part_min(int, int, int);
+void printMinResult(long long* res, int);
 
 int main() {
 	init_arr();
 
-	long long s = 0;
-	long long m = LLONG_MAX;
+	long long actualSum = 0;
+	long long actualMin = LLONG_MAX;
+	int actualMinIndex = -1;
 	for (int i = 0; i < arr_size1; i++)
 	{
 		long long rowSum = 0;
@@ -27,14 +29,15 @@ int main() {
 		{
 			rowSum += arr[i][j];
 		}
-		s += rowSum;
-		if (m > rowSum)
+		actualSum += rowSum;
+		if (actualMin > rowSum)
 		{
-			m = rowSum;
+			actualMin = rowSum;
+			actualMinIndex = i;
 		}
 	}
-	cout << "sum is " << s << endl;
-	cout << "min is " << m << endl;
+	cout << "Actual sum is " << actualSum << endl;
+	cout << "Actual min is " << actualMin << "; index is " << actualMinIndex << endl;
 	cout << "--------------------------------------------------------------" << endl;
 
 	omp_set_nested(1);
@@ -43,12 +46,13 @@ int main() {
 	{
 #pragma omp section
 		{
-			cout << "min 1 = " << part_min(0, arr_size1, 1) << endl;
-			cout << "min 2 = " << part_min(0, arr_size1, 2) << endl;
-			cout << "min 3 = " << part_min(0, arr_size1, 3) << endl;
-			cout << "min 4 = " << part_min(0, arr_size1, 4) << endl;
-			cout << "min 8 = " << part_min(0, arr_size1, 8) << endl;
-			cout << "min 16 = " << part_min(0, arr_size1, 16) << endl;
+			printMinResult(part_min(0, arr_size1, 1), 1);
+			printMinResult(part_min(0, arr_size1, 2), 2);
+			printMinResult(part_min(0, arr_size1, 3), 3);
+			printMinResult(part_min(0, arr_size1, 4), 4);
+			printMinResult(part_min(0, arr_size1, 8), 8);
+			printMinResult(part_min(0, arr_size1, 16), 16);
+			printMinResult(part_min(0, arr_size1, 32), 32);
 		}
 
 #pragma omp section
@@ -59,6 +63,7 @@ int main() {
 			cout << "sum 4 = " << part_sum(0, arr_size1, 4) << endl;
 			cout << "sum 8 = " << part_sum(0, arr_size1, 8) << endl;
 			cout << "sum 16 = " << part_sum(0, arr_size1, 16) << endl;
+			cout << "sum 32 = " << part_sum(0, arr_size1, 32) << endl;
 		}
 	}
 	double t2 = omp_get_wtime();
@@ -71,6 +76,11 @@ void init_arr() {
 	for (int i = 0; i < arr_size1; i++) {
 		for (int j = 0; j < arr_size2; j++) {
 			arr[i][j] = (i + 1) * (j + 1);
+		}
+
+		for (int i = 0; i < arr_size2; i++)
+		{
+			arr[arr_size1 / 2][i] = i / 2;
 		}
 	}
 }
@@ -97,8 +107,11 @@ long long part_sum(int start_index, int finish_index, int num_threads) {
 	return sum;
 }
 
-long long part_min(int start_index, int finish_index, int num_threads) {
+long long* part_min(int start_index, int finish_index, int num_threads) {
+	long long* minAndIndex = new long long[2];
+
 	long long min = LLONG_MAX;
+	int indexOfMin = -1;
 	double t1 = omp_get_wtime();
 #pragma omp parallel for num_threads(num_threads)
 	for (int i = start_index; i < finish_index; i++) {
@@ -114,16 +127,24 @@ long long part_min(int start_index, int finish_index, int num_threads) {
 			if (min > sum)
 			{
 				min = sum;
+				indexOfMin = i;
 			}
 		}
 	}
 
 	double t2 = omp_get_wtime();
+	minAndIndex[0] = min;
+	minAndIndex[1] = indexOfMin;
 
 	if (printMin)
 	{
 		cout << "min " << num_threads << " threads worked - " << t2 - t1 << " seconds" << endl;
 	}
 
-	return min;
+	return minAndIndex;
+}
+
+void printMinResult(long long* res, int threadCount)
+{
+	cout << "min " << threadCount << " = " << res[0] << "; index is " << res[1] << endl;
 }
